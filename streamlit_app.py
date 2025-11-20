@@ -1,5 +1,5 @@
 import streamlit as st
-import clips  # from the clipspy package
+from clips import Environment, Symbol
 
 
 # ---------------------------------------------------------
