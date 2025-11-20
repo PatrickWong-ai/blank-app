@@ -1,36 +1,34 @@
 import streamlit as st
 from clips import Environment
-import textwrap
+
 
 # ---------------------------------------------------------
-# Expert System – Create Environment + Rules
+# Expert System (Safe: build line-by-line)
 # ---------------------------------------------------------
 def create_environment():
-
     env = Environment()
 
-    clips_code = textwrap.dedent("""
-    (deftemplate symptom
-        (slot name)
-        (slot value))
+    # --- Build templates ---
+    env.build("(deftemplate symptom (slot name) (slot value))")
+    env.build("(deftemplate result (slot diagnosis))")
 
-    (deftemplate result
-        (slot diagnosis))
+    # --- Build rules (NO MULTILINE!!!) ---
+    env.build(
+        '(defrule covid-possible '
+        '(symptom (name fever) (value yes)) '
+        '(symptom (name cough) (value yes)) '
+        '=> '
+        '(assert (result (diagnosis "Possible COVID-19 infection. Please test and isolate."))))'
+    )
 
-    (defrule covid-possible
-        (symptom (name fever) (value yes))
-        (symptom (name cough) (value yes))
-        =>
-        (assert (result (diagnosis "Possible COVID-19 infection. Please test and isolate."))))
+    env.build(
+        '(defrule covid-unlikely '
+        '(symptom (name fever) (value no)) '
+        '(symptom (name cough) (value no)) '
+        '=> '
+        '(assert (result (diagnosis "Unlikely COVID-19 from these symptoms."))))'
+    )
 
-    (defrule covid-unlikely
-        (symptom (name fever) (value no))
-        (symptom (name cough) (value no))
-        =>
-        (assert (result (diagnosis "Unlikely COVID-19 from these symptoms."))))
-    """)
-
-    env.build(clips_code)
     return env
 
 
@@ -60,20 +58,22 @@ def run_expert_system(has_fever: bool, has_cough: bool) -> str:
 # Streamlit UI
 # ---------------------------------------------------------
 def main():
-
     st.title("🩺 COVID-19 Diagnosis Expert System (CLIPS + Streamlit)")
+    st.write("Simple CLIPS rule-based diagnosis. Educational only.")
 
-    st.write("Simple CLIPS expert system for education only.")
-
-    fever = st.radio("Do you have fever?", ["No", "Yes"], horizontal=True)
-    cough = st.radio("Do you have cough?", ["No", "Yes"], horizontal=True)
+    fever = st.radio("Do you have a fever?", ["No", "Yes"], horizontal=True)
+    cough = st.radio("Do you have a cough?", ["No", "Yes"], horizontal=True)
 
     has_fever = fever == "Yes"
     has_cough = cough == "Yes"
 
     if st.button("Diagnose"):
-        result = run_expert_system(has_fever, has_cough)
-        st.success(result)
+        try:
+            result = run_expert_system(has_fever, has_cough)
+            st.success(result)
+        except Exception as e:
+            st.error("CLIPS error occurred")
+            st.code(str(e))
 
 
 if __name__ == "__main__":
